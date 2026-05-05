@@ -1,46 +1,78 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+/**
+ * api.js
+ * ALTERAÇÃO: Agora usa storageService (IndexedDB) em vez de HTTP
+ * Mantém interface compatível com código existente
+ *
+ * FUTURO: Substituir storageService por Firebase:
+ * import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+ */
 
-async function request(path, options = {}) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Erro na requisição');
+import { storageService } from "./services/storageService";
+
+// DESATIVADO: Requisições HTTP para o backend
+// const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// async function request(path, options = {}) { ... }
+
+/**
+ * Wrapper para operações do storageService
+ * Converte IDs numéricos para compatibilidade
+ */
+async function dbOperation(collection, operation, ...args) {
+  try {
+    return await storageService[operation](collection, ...args);
+  } catch (error) {
+    console.error(`Erro em ${collection}.${operation}:`, error);
+    throw error;
   }
-  return res.json();
 }
 
 export const api = {
-  // Vacas
-  getVacas: () => request('/vacas'),
-  getVaca: (id) => request(`/vacas/${id}`),
-  createVaca: (data) => request('/vacas', { method: 'POST', body: JSON.stringify(data) }),
-  updateVaca: (id, data) => request(`/vacas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteVaca: (id) => request(`/vacas/${id}`, { method: 'DELETE' }),
+  // ===== Vacas =====
+  getVacas: () => dbOperation("vacas", "getAll"),
+  getVaca: (id) => dbOperation("vacas", "getById", id),
+  createVaca: (data) => dbOperation("vacas", "create", data),
+  updateVaca: (id, data) => dbOperation("vacas", "update", id, data),
+  deleteVaca: (id) => dbOperation("vacas", "remove", id),
 
-  // Produção
-  getProducao: (vacaId) => request(`/producao${vacaId ? `?vacaId=${vacaId}` : ''}`),
-  createProducao: (data) => request('/producao', { method: 'POST', body: JSON.stringify(data) }),
-  updateProducao: (id, data) => request(`/producao/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteProducao: (id) => request(`/producao/${id}`, { method: 'DELETE' }),
+  // ===== Produção =====
+  // ALTERAÇÃO: Agora retorna todos os registros
+  // FUTURO: Adicionar filtro por vacaId se necessário
+  getProducao: (vacaId) =>
+    vacaId
+      ? dbOperation("producao", "getAll").then((items) =>
+          items.filter((p) => p.vacaId === vacaId),
+        )
+      : dbOperation("producao", "getAll"),
+  createProducao: (data) => dbOperation("producao", "create", data),
+  updateProducao: (id, data) => dbOperation("producao", "update", id, data),
+  deleteProducao: (id) => dbOperation("producao", "remove", id),
 
-  // Medicamentos
-  getMedicamentos: (vacaId) => request(`/medicamentos${vacaId ? `?vacaId=${vacaId}` : ''}`),
-  createMedicamento: (data) => request('/medicamentos', { method: 'POST', body: JSON.stringify(data) }),
-  updateMedicamento: (id, data) => request(`/medicamentos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteMedicamento: (id) => request(`/medicamentos/${id}`, { method: 'DELETE' }),
+  // ===== Medicamentos =====
+  getMedicamentos: (vacaId) =>
+    vacaId
+      ? dbOperation("medicamentos", "getAll").then((items) =>
+          items.filter((m) => m.vacaId === vacaId),
+        )
+      : dbOperation("medicamentos", "getAll"),
+  createMedicamento: (data) => dbOperation("medicamentos", "create", data),
+  updateMedicamento: (id, data) =>
+    dbOperation("medicamentos", "update", id, data),
+  deleteMedicamento: (id) => dbOperation("medicamentos", "remove", id),
 
-  // Sanitário
-  getSanitario: (vacaId) => request(`/sanitario${vacaId ? `?vacaId=${vacaId}` : ''}`),
-  createSanitario: (data) => request('/sanitario', { method: 'POST', body: JSON.stringify(data) }),
-  updateSanitario: (id, data) => request(`/sanitario/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteSanitario: (id) => request(`/sanitario/${id}`, { method: 'DELETE' }),
+  // ===== Sanitário =====
+  getSanitario: (vacaId) =>
+    vacaId
+      ? dbOperation("sanitario", "getAll").then((items) =>
+          items.filter((s) => s.vacaId === vacaId),
+        )
+      : dbOperation("sanitario", "getAll"),
+  createSanitario: (data) => dbOperation("sanitario", "create", data),
+  updateSanitario: (id, data) => dbOperation("sanitario", "update", id, data),
+  deleteSanitario: (id) => dbOperation("sanitario", "remove", id),
 
-  // Despesas
-  getDespesas: () => request('/despesas'),
-  createDespesa: (data) => request('/despesas', { method: 'POST', body: JSON.stringify(data) }),
-  updateDespesa: (id, data) => request(`/despesas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteDespesa: (id) => request(`/despesas/${id}`, { method: 'DELETE' }),
+  // ===== Despesas =====
+  getDespesas: () => dbOperation("despesas", "getAll"),
+  createDespesa: (data) => dbOperation("despesas", "create", data),
+  updateDespesa: (id, data) => dbOperation("despesas", "update", id, data),
+  deleteDespesa: (id) => dbOperation("despesas", "remove", id),
 };
